@@ -4039,30 +4039,77 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
         },
 
         .copy_url_to_clipboard => {
-            // If the mouse isn't over a link, nothing we can do.
-            if (!self.mouse.over_link) return false;
+            self.renderer_state.mutex.lock();
+            defer self.renderer_state.mutex.unlock();
 
-            const pos = try self.rt_surface.getCursorPos();
-            if (try self.linkAtPos(pos)) |link_info| {
-                // Get the URL text from selection
-                const url_text = (self.io.terminal.screen.selectionString(self.alloc, .{
-                    .sel = link_info[1],
-                    .trim = self.config.clipboard_trim_trailing_spaces,
-                })) catch |err| {
-                    log.err("error reading url string err={}", .{err});
+            // Get the current mouse position to check for links
+            const link_point = self.mouse.link_point orelse return false;
+            const screen = &self.renderer_state.terminal.screen;
+            const pin = screen.pages.pin(.{ .viewport = link_point }) orelse return false;
+
+            // Check if this is an OSC8 hyperlink
+            const cell = pin.rowAndCell().cell;
+            if (cell.hyperlink) {
+                // This is an OSC8 hyperlink, get the URI directly
+                const uri = self.osc8URI(pin) orelse {
+                    log.warn("failed to get URI for OSC8 hyperlink", .{});
                     return false;
                 };
+                const url_text = try self.alloc.dupeZ(u8, uri);
                 defer self.alloc.free(url_text);
 
                 self.rt_surface.setClipboardString(url_text, .standard, false) catch |err| {
                     log.err("error copying url to clipboard err={}", .{err});
-                    return true;
+                    return false;
                 };
 
                 return true;
-            }
+            } else {
+                // This is a regex-detected link, we need to get the line and find the matching link
+                const line = screen.selectLine(.{
+                    .pin = pin,
+                    .whitespace = null,
+                    .semantic_prompt_boundary = false,
+                }) orelse return false;
 
-            return false;
+                var strmap: terminal.StringMap = undefined;
+                self.alloc.free(try screen.selectionString(self.alloc, .{
+                    .sel = line,
+                    .trim = false,
+                    .map = &strmap,
+                }));
+                defer strmap.deinit(self.alloc);
+
+                // Go through each configured link and see if we match
+                for (self.config.links) |link| {
+                    var it = strmap.searchIterator(link.regex);
+                    while (true) {
+                        var match = (try it.next()) orelse break;
+                        defer match.deinit();
+                        const sel = match.selection();
+                        if (!sel.contains(screen, pin)) continue;
+
+                        // Found the matching link, get its text
+                        const url_text = (screen.selectionString(self.alloc, .{
+                            .sel = sel,
+                            .trim = self.config.clipboard_trim_trailing_spaces,
+                        })) catch |err| {
+                            log.err("error reading url string err={}", .{err});
+                            return false;
+                        };
+                        defer self.alloc.free(url_text);
+
+                        self.rt_surface.setClipboardString(url_text, .standard, false) catch |err| {
+                            log.err("error copying url to clipboard err={}", .{err});
+                            return false;
+                        };
+
+                        return true;
+                    }
+                }
+
+                return false;
+            }
         },
 
         .paste_from_clipboard => try self.startClipboardRequest(
