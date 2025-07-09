@@ -260,34 +260,51 @@ fn collection(
         .regular,
         .{ .fallback_loaded = try .init(
             self.font_lib,
-            font.embedded.regular,
+            font.embedded.variable,
             load_options.faceOptions(),
         ) },
     );
-    _ = try c.add(
+    try (try c.getFace(try c.add(
         self.alloc,
         .bold,
         .{ .fallback_loaded = try .init(
             self.font_lib,
-            font.embedded.bold,
+            font.embedded.variable,
             load_options.faceOptions(),
         ) },
+    ))).setVariations(
+        &.{.{ .id = .init("wght"), .value = 700 }},
+        load_options.faceOptions(),
     );
     _ = try c.add(
         self.alloc,
         .italic,
         .{ .fallback_loaded = try .init(
             self.font_lib,
-            font.embedded.italic,
+            font.embedded.variable_italic,
             load_options.faceOptions(),
         ) },
     );
-    _ = try c.add(
+    try (try c.getFace(try c.add(
         self.alloc,
         .bold_italic,
         .{ .fallback_loaded = try .init(
             self.font_lib,
-            font.embedded.bold_italic,
+            font.embedded.variable_italic,
+            load_options.faceOptions(),
+        ) },
+    ))).setVariations(
+        &.{.{ .id = .init("wght"), .value = 700 }},
+        load_options.faceOptions(),
+    );
+
+    // Nerd-font symbols fallback.
+    _ = try c.add(
+        self.alloc,
+        .regular,
+        .{ .fallback_loaded = try Face.init(
+            self.font_lib,
+            font.embedded.symbols_nerd_font,
             load_options.faceOptions(),
         ) },
     );
@@ -432,6 +449,7 @@ pub const DerivedConfig = struct {
     @"adjust-cursor-thickness": ?Metrics.Modifier,
     @"adjust-cursor-height": ?Metrics.Modifier,
     @"adjust-box-thickness": ?Metrics.Modifier,
+    @"adjust-icon-height": ?Metrics.Modifier,
     @"freetype-load-flags": font.face.FreetypeLoadFlags,
 
     /// Initialize a DerivedConfig. The config should be either a
@@ -471,6 +489,7 @@ pub const DerivedConfig = struct {
             .@"adjust-cursor-thickness" = config.@"adjust-cursor-thickness",
             .@"adjust-cursor-height" = config.@"adjust-cursor-height",
             .@"adjust-box-thickness" = config.@"adjust-box-thickness",
+            .@"adjust-icon-height" = config.@"adjust-icon-height",
             .@"freetype-load-flags" = if (font.face.FreetypeLoadFlags != void) config.@"freetype-load-flags" else {},
 
             // This must be last so the arena contains all our allocations
@@ -617,6 +636,7 @@ pub const Key = struct {
             if (config.@"adjust-cursor-thickness") |m| try set.put(alloc, .cursor_thickness, m);
             if (config.@"adjust-cursor-height") |m| try set.put(alloc, .cursor_height, m);
             if (config.@"adjust-box-thickness") |m| try set.put(alloc, .box_thickness, m);
+            if (config.@"adjust-icon-height") |m| try set.put(alloc, .icon_height, m);
             break :set set;
         };
 

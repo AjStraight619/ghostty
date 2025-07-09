@@ -62,6 +62,17 @@ pub const compatibility = std.StaticStringMap(
     // Ghostty 1.2 removed the `hidden` value from `gtk-tabs-location` and
     // moved it to `window-show-tab-bar`.
     .{ "gtk-tabs-location", compatGtkTabsLocation },
+
+    // Ghostty 1.2 lets you set `cell-foreground` and `cell-background`
+    // to match the cell foreground and background colors, respectively.
+    // This can be used with `cursor-color` and `cursor-text` to recreate
+    // this behavior. This applies to selection too.
+    .{ "cursor-invert-fg-bg", compatCursorInvertFgBg },
+    .{ "selection-invert-fg-bg", compatSelectionInvertFgBg },
+
+    // Ghostty 1.2 merged `bold-is-bright` into the new `bold-color`
+    // by setting the value to "bright".
+    .{ "bold-is-bright", compatBoldIsBright },
 });
 
 /// The font families to use.
@@ -294,6 +305,7 @@ pub const compatibility = std.StaticStringMap(
 ///
 ///   * `cursor` - Break runs under the cursor.
 ///
+/// Available since: 1.2.0
 @"font-shaping-break": FontShapingBreak = .{},
 
 /// What color space to use when performing alpha blending.
@@ -318,6 +330,8 @@ pub const compatibility = std.StaticStringMap(
 /// * `linear-corrected` - Same as `linear`, but with a correction step applied
 ///   for text that makes it look nearly or completely identical to `native`,
 ///   but without any of the darkening artifacts.
+///
+/// Available since: 1.1.0
 @"alpha-blending": AlphaBlending =
     if (builtin.os.tag == .macos)
         .native
@@ -385,6 +399,20 @@ pub const compatibility = std.StaticStringMap(
 /// Thickness in pixels or percentage adjustment of box drawing characters.
 /// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-box-thickness": ?MetricModifier = null,
+/// Height in pixels or percentage adjustment of maximum height for nerd font icons.
+///
+/// Increasing this value will allow nerd font icons to be larger, but won't
+/// necessarily force them to be. Decreasing this value will make nerd font
+/// icons smaller.
+///
+/// The default value for the icon height is 1.2 times the height of capital
+/// letters in your primary font, so something like -16.6% would make icons
+/// roughly the same height as capital letters.
+///
+/// See the notes about adjustments in `adjust-cell-width`.
+///
+/// Available in: 1.2.0
+@"adjust-icon-height": ?MetricModifier = null,
 
 /// The method to use for calculating the cell width of a grapheme cluster.
 /// The default value is `unicode` which uses the Unicode standard to determine
@@ -425,13 +453,16 @@ pub const compatibility = std.StaticStringMap(
 ///
 /// Available flags:
 ///
-///   * `hinting` - Enable or disable hinting, enabled by default.
-///   * `force-autohint` - Use the freetype auto-hinter rather than the
-///     font's native hinter. Enabled by default.
-///   * `monochrome` - Instructs renderer to use 1-bit monochrome
-///     rendering. This option doesn't impact the hinter.
-///     Enabled by default.
-///   * `autohint` - Use the freetype auto-hinter. Enabled by default.
+///   * `hinting` - Enable or disable hinting. Enabled by default.
+///
+///   * `force-autohint` - Always use the freetype auto-hinter instead of
+///     the font's native hinter. Disabled by default.
+///
+///   * `monochrome` - Instructs renderer to use 1-bit monochrome rendering.
+///     This will disable anti-aliasing, and probably not look very good unless
+///     you're using a pixel font. Disabled by default.
+///
+///   * `autohint` - Enable the freetype auto-hinter. Enabled by default.
 ///
 /// Example: `hinting`, `no-hinting`, `force-autohint`, `no-force-autohint`
 @"freetype-load-flags": FreetypeLoadFlags = .{},
@@ -489,7 +520,6 @@ pub const compatibility = std.StaticStringMap(
 /// be fixed in a future update:
 ///
 ///   - macOS: titlebar tabs style is not updated when switching themes.
-///
 theme: ?Theme = null,
 
 /// Background color for the window.
@@ -513,6 +543,8 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// For sufficiently large images, this could lead to a large increase in
 /// memory usage (specifically VRAM usage). A future Ghostty improvement
 /// will resolve this by sharing image textures across terminals.
+///
+/// Available since: 1.2.0
 @"background-image": ?Path = null,
 
 /// Background image opacity.
@@ -532,6 +564,8 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// configured `background-opacity` is `0.5` and `background-image-opacity`
 /// is set to `1.5`, then the final opacity of the background image will be
 /// `0.5 * 1.5 = 0.75`.
+///
+/// Available since: 1.2.0
 @"background-image-opacity": f32 = 1.0,
 
 /// Background image position.
@@ -548,6 +582,8 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 ///   * `bottom-right`
 ///
 /// The default value is `center`.
+///
+/// Available since: 1.2.0
 @"background-image-position": BackgroundImagePosition = .center,
 
 /// Background image fit.
@@ -576,6 +612,8 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 ///     Don't scale the background image.
 ///
 /// The default value is `contain`.
+///
+/// Available since: 1.2.0
 @"background-image-fit": BackgroundImageFit = .contain,
 
 /// Whether to repeat the background image or not.
@@ -585,22 +623,19 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// fill the terminal area.
 ///
 /// The default value is `false`.
+///
+/// Available since: 1.2.0
 @"background-image-repeat": bool = false,
 
 /// The foreground and background color for selection. If this is not set, then
 /// the selection color is just the inverted window background and foreground
 /// (note: not to be confused with the cell bg/fg).
 /// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
-@"selection-foreground": ?Color = null,
-@"selection-background": ?Color = null,
-
-/// Swap the foreground and background colors of cells for selection. This
-/// option overrides the `selection-foreground` and `selection-background`
-/// options.
-///
-/// If you select across cells with differing foregrounds and backgrounds, the
-/// selection color will vary across the selection.
-@"selection-invert-fg-bg": bool = false,
+/// Since version 1.2.0, this can also be set to `cell-foreground` to match
+/// the cell foreground color, or `cell-background` to match the cell
+/// background color.
+@"selection-foreground": ?TerminalColor = null,
+@"selection-background": ?TerminalColor = null,
 
 /// Whether to clear selected text when typing. This defaults to `true`.
 /// This is typical behavior for most terminal emulators as well as
@@ -615,6 +650,8 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 ///
 /// If this is `false`, then the selection can still be manually
 /// cleared by clicking once or by pressing `escape`.
+///
+/// Available since: 1.2.0
 @"selection-clear-on-typing": bool = true,
 
 /// The minimum contrast ratio between the foreground and background colors.
@@ -644,12 +681,19 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 palette: Palette = .{},
 
 /// The color of the cursor. If this is not set, a default will be chosen.
-/// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
-@"cursor-color": ?Color = null,
-
-/// Swap the foreground and background colors of the cell under the cursor. This
-/// option overrides the `cursor-color` and `cursor-text` options.
-@"cursor-invert-fg-bg": bool = false,
+///
+/// Direct colors can be specified as either hex (`#RRGGBB` or `RRGGBB`)
+/// or a named X11 color.
+///
+/// Additionally, special values can be used to set the color to match
+/// other colors at runtime:
+///
+///   * `cell-foreground` - Match the cell foreground color.
+///     (Available since version 1.2.0)
+///
+///   * `cell-background` - Match the cell background color.
+///     (Available since version 1.2.0)
+@"cursor-color": ?TerminalColor = null,
 
 /// The opacity level (opposite of transparency) of the cursor. A value of 1
 /// is fully opaque and a value of 0 is fully transparent. A value less than 0
@@ -673,7 +717,6 @@ palette: Palette = .{},
 ///   * `bar`
 ///   * `underline`
 ///   * `block_hollow`
-///
 @"cursor-style": terminal.CursorStyle = .block,
 
 /// Sets the default blinking state of the cursor. This is just the default
@@ -693,13 +736,15 @@ palette: Palette = .{},
 ///   * ` ` (blank)
 ///   * `true`
 ///   * `false`
-///
 @"cursor-style-blink": ?bool = null,
 
 /// The color of the text under the cursor. If this is not set, a default will
 /// be chosen.
 /// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
-@"cursor-text": ?Color = null,
+/// Since version 1.2.0, this can also be set to `cell-foreground` to match
+/// the cell foreground color, or `cell-background` to match the cell
+/// background color.
+@"cursor-text": ?TerminalColor = null,
 
 /// Enables the ability to move the cursor at prompts by using `alt+click` on
 /// Linux and `option+click` on macOS.
@@ -747,7 +792,6 @@ palette: Palette = .{},
 ///   * `false`
 ///   * `always`
 ///   * `never`
-///
 @"mouse-shift-capture": MouseShiftCapture = .false,
 
 /// Multiplier for scrolling distance with the mouse wheel. Any value less
@@ -755,6 +799,8 @@ palette: Palette = .{},
 /// value.
 ///
 /// A value of "3" (default) scrolls 3 lines per tick.
+///
+/// Available since: 1.2.0
 @"mouse-scroll-multiplier": f64 = 3.0,
 
 /// The opacity level (opposite of transparency) of the background. A value of
@@ -823,6 +869,8 @@ palette: Palette = .{},
 
 /// The color of the split divider. If this is not set, a default will be chosen.
 /// Specified as either hex (`#RRGGBB` or `RRGGBB`) or a named X11 color.
+///
+/// Available since: 1.1.0
 @"split-divider-color": ?Color = null,
 
 /// The command to run, usually a shell. If this is not an absolute path, it'll
@@ -837,14 +885,14 @@ palette: Palette = .{},
 /// arguments are provided, the command will be executed using `/bin/sh -c`
 /// to offload shell argument expansion.
 ///
-/// To avoid shell expansion altogether, prefix the command with `direct:`,
-/// e.g. `direct:nvim foo`. This will avoid the roundtrip to `/bin/sh` but will
-/// also not support any shell parsing such as arguments with spaces, filepaths
-/// with `~`, globs, etc.
+/// To avoid shell expansion altogether, prefix the command with `direct:`, e.g.
+/// `direct:nvim foo`. This will avoid the roundtrip to `/bin/sh` but will also
+/// not support any shell parsing such as arguments with spaces, filepaths with
+/// `~`, globs, etc. (Available since: 1.2.0)
 ///
-/// You can also explicitly prefix the command with `shell:` to always
-/// wrap the command in a shell. This can be used to ensure our heuristics
-/// to choose the right mode are not used in case they are wrong.
+/// You can also explicitly prefix the command with `shell:` to always wrap the
+/// command in a shell. This can be used to ensure our heuristics to choose the
+/// right mode are not used in case they are wrong. (Available since: 1.2.0)
 ///
 /// This command will be used for all new terminal surfaces, i.e. new windows,
 /// tabs, etc. If you want to run a command only for the first terminal surface
@@ -890,7 +938,6 @@ command: ?Command = null,
 ///     shell integration with a `-e`-executed command, you must either
 ///     name your binary appropriately or source the shell integration script
 ///     manually.
-///
 @"initial-command": ?Command = null,
 
 /// Extra environment variables to pass to commands launched in a terminal
@@ -927,6 +974,8 @@ command: ?Command = null,
 /// These environment variables _will not_ be passed to commands run by Ghostty
 /// for other purposes, like `open` or `xdg-open` used to open URLs in your
 /// browser.
+///
+/// Available since: 1.2.0
 env: RepeatableStringMap = .{},
 
 /// Data to send as input to the command on startup.
@@ -968,6 +1017,8 @@ env: RepeatableStringMap = .{},
 ///
 /// Changing this configuration at runtime will only affect new
 /// terminals.
+///
+/// Available since: 1.2.0
 input: RepeatableReadableIO = .{},
 
 /// If true, keep the terminal open after the command exits. Normally, the
@@ -1030,9 +1081,21 @@ link: RepeatableLink = .{},
 /// `link`). If you want to customize URL matching, use `link` and disable this.
 @"link-url": bool = true,
 
+/// Show link previews for a matched URL.
+///
+/// When true, link previews are shown for all matched URLs. When false, link
+/// previews are never shown. When set to "osc8", link previews are only shown
+/// for hyperlinks created with the OSC 8 sequence (in this case, the link text
+/// can differ from the link destination).
+///
+/// Available since: 1.2.0
+@"link-previews": LinkPreviews = .true,
+
 /// Whether to start the window in a maximized state. This setting applies
 /// to new windows and does not apply to tabs, splits, etc. However, this setting
 /// will apply to all new windows, not just the first one.
+///
+/// Available since: 1.1.0
 maximize: bool = false,
 
 /// Start new windows in fullscreen. This setting applies to new windows and
@@ -1257,6 +1320,8 @@ class: ?[:0]const u8 = null,
 ///     applies to actions that are surface-specific. For actions that
 ///     are already global (e.g. `quit`), this prefix has no effect.
 ///
+///     Available since: 1.0.0
+///
 ///   * `global:` - Make the keybind global. By default, keybinds only work
 ///     within Ghostty and under the right conditions (application focused,
 ///     sometimes terminal focused, etc.). If you want a keybind to work
@@ -1264,6 +1329,9 @@ class: ?[:0]const u8 = null,
 ///     specify this prefix. This prefix implies `all:`. Note: this does not
 ///     work in all environments; see the additional notes below for more
 ///     information.
+///
+///     Available since: 1.0.0 (on macOS)
+///     Available since: 1.2.0 (on GTK)
 ///
 ///   * `unconsumed:` - Do not consume the input. By default, a keybind
 ///     will consume the input, meaning that the associated encoding (if
@@ -1274,6 +1342,8 @@ class: ?[:0]const u8 = null,
 ///     keybinds will always consume the input regardless of this setting.
 ///     Since they are not associated with a specific terminal surface,
 ///     they're never encoded.
+///
+///     Available since: 1.0.0
 ///
 ///   * `performable:` - Only consume the input if the action is able to be
 ///     performed. For example, the `copy_to_clipboard` action will only
@@ -1289,6 +1359,8 @@ class: ?[:0]const u8 = null,
 ///     action to be performed regardless of the state of the terminal.
 ///     Performable keybinds will still work, they just won't appear as
 ///     a shortcut label in the menu.
+///
+///     Available since: 1.1.0
 ///
 /// Keybind triggers are not unique per prefix combination. For example,
 /// `ctrl+a` and `global:ctrl+a` are not two separate keybinds. The keybind
@@ -1399,7 +1471,6 @@ keybind: Keybinds = .{},
 ///   do not look good extended.
 /// * The nearest row contains a perfect fit powerline character. These
 ///   don't look good extended.
-///
 @"window-padding-color": WindowPaddingColor = .background,
 
 /// Synchronize rendering with the screen refresh rate. If true, this will
@@ -1446,6 +1517,8 @@ keybind: Keybinds = .{},
 ///
 ///   * `client` - Prefer client-side decorations.
 ///
+///     Available since: 1.1.0
+///
 ///   * `server` - Prefer server-side decorations. This is only relevant
 ///     on Linux with GTK, either on X11, or Wayland on a compositor that
 ///     supports the `org_kde_kwin_server_decoration` protocol (e.g. KDE Plasma,
@@ -1453,6 +1526,8 @@ keybind: Keybinds = .{},
 ///
 ///     If `server` is set but the environment doesn't support server-side
 ///     decorations, client-side decorations will be used instead.
+///
+///     Available since: 1.1.0
 ///
 /// The default value is `auto`.
 ///
@@ -1476,6 +1551,8 @@ keybind: Keybinds = .{},
 ///
 /// Note: any font available on the system may be used, this font is not
 /// required to be a fixed-width font.
+///
+/// Available since: 1.1.0 (on GTK)
 @"window-title-font-family": ?[:0]const u8 = null,
 
 /// The text that will be displayed in the subtitle of the window. Valid values:
@@ -1485,6 +1562,8 @@ keybind: Keybinds = .{},
 ///      surface.
 ///
 /// This feature is only supported on GTK.
+///
+/// Available since: 1.1.0
 @"window-subtitle": WindowSubtitle = .false,
 
 /// The theme to use for the windows. Valid values:
@@ -1569,9 +1648,9 @@ keybind: Keybinds = .{},
 /// the visible screen area. This means that if the menu bar is visible, the
 /// window will be placed below the menu bar.
 ///
-/// Note: this is only supported on macOS and Linux GLFW builds. The GTK
-/// runtime does not support setting the window position, as windows are
-/// only allowed position themselves in X11 and not Wayland.
+/// Note: this is only supported on macOS. The GTK runtime does not support
+/// setting the window position, as windows are only allowed position
+/// themselves in X11 and not Wayland.
 @"window-position-x": ?i16 = null,
 @"window-position-y": ?i16 = null,
 
@@ -1627,6 +1706,8 @@ keybind: Keybinds = .{},
 ///  - `always`
 ///
 ///    Always display the tab bar, even when there's only one tab.
+///
+///    Available since: 1.2.0
 ///
 ///  - `auto` *(default)*
 ///
@@ -1712,6 +1793,8 @@ keybind: Keybinds = .{},
 ///
 /// The maximum value is `584y 49w 23h 34m 33s 709ms 551µs 615ns`. Any
 /// value larger than this will be clamped to the maximum value.
+///
+/// Available since 1.0.0
 @"resize-overlay-duration": Duration = .{ .duration = 750 * std.time.ns_per_ms },
 
 /// If true, when there are multiple split panes, the mouse selects the pane
@@ -1757,6 +1840,8 @@ keybind: Keybinds = .{},
 /// Warning: This can expose sensitive information at best and enable
 /// arbitrary code execution at worst (with a maliciously crafted title
 /// and a minor amount of user interaction).
+///
+/// Available since: 1.0.1
 @"title-report": bool = false,
 
 /// The total amount of bytes that can be used for image data (e.g. the Kitty
@@ -1944,6 +2029,8 @@ keybind: Keybinds = .{},
 /// This configuration is only supported on macOS. Linux doesn't
 /// support undo operations at all so this configuration has no
 /// effect.
+///
+/// Available since: 1.2.0
 @"undo-timeout": Duration = .{ .duration = 5 * std.time.ns_per_s },
 
 /// The position of the "quick" terminal window. To learn more about the
@@ -2047,6 +2134,8 @@ keybind: Keybinds = .{},
 ///
 /// Only implemented on macOS.
 /// On Linux the behavior is always equivalent to `move`.
+///
+/// Available since: 1.1.0
 @"quick-terminal-space-behavior": QuickTerminalSpaceBehavior = .move,
 
 /// Determines under which circumstances that the quick terminal should receive
@@ -2075,6 +2164,8 @@ keybind: Keybinds = .{},
 ///
 /// Only has an effect on Linux Wayland.
 /// On macOS the behavior is always equivalent to `on-demand`.
+///
+/// Available since: 1.2.0
 @"quick-terminal-keyboard-interactivity": QuickTerminalKeyboardInteractivity = .@"on-demand",
 
 /// Whether to enable shell integration auto-injection or not. Shell integration
@@ -2142,6 +2233,8 @@ keybind: Keybinds = .{},
 /// ```ini
 /// command-palette-entry =
 /// ```
+///
+/// Available since: 1.2.0
 @"command-palette-entry": RepeatableCommand = .{},
 
 /// Sets the reporting format for OSC sequences that request color information.
@@ -2306,6 +2399,8 @@ keybind: Keybinds = .{},
 ///    Only implemented on macOS.
 ///
 /// Example: `audio`, `no-audio`, `system`, `no-system`
+///
+/// Available since: 1.2.0
 @"bell-features": BellFeatures = .{},
 
 /// If `audio` is an enabled bell feature, this is a path to an audio file. If
@@ -2313,12 +2408,16 @@ keybind: Keybinds = .{},
 /// configuration file that it is referenced from, or from the current working
 /// directory if this is used as a CLI flag. The path may be prefixed with `~/`
 /// to reference the user's home directory. (GTK only)
+///
+/// Available since: 1.2.0
 @"bell-audio-path": ?Path = null,
 
 /// If `audio` is an enabled bell feature, this is the volume to play the audio
 /// file at (relative to the system volume). This is a floating point number
 /// ranging from 0.0 (silence) to 1.0 (as loud as possible). The default is 0.5.
 /// (GTK only)
+///
+/// Available since: 1.2.0
 @"bell-audio-volume": f64 = 0.5,
 
 /// Control the in-app notifications that Ghostty shows.
@@ -2344,6 +2443,8 @@ keybind: Keybinds = .{},
 /// enable all notifications.
 ///
 /// This configuration only applies to GTK.
+///
+/// Available since: 1.1.0
 @"app-notifications": AppNotifications = .{},
 
 /// If anything other than false, fullscreen mode on macOS will not use the
@@ -2394,6 +2495,8 @@ keybind: Keybinds = .{},
 /// The default value is `visible`.
 ///
 /// Changing this option at runtime only applies to new windows.
+///
+/// Available since: 1.2.0
 @"macos-window-buttons": MacWindowButtons = .visible,
 
 /// The style of the macOS titlebar. Available values are: "native",
@@ -2491,8 +2594,6 @@ keybind: Keybinds = .{},
 ///
 /// The values `left` or `right` enable this for the left or right *Option*
 /// key, respectively.
-///
-/// This does not work with GLFW builds.
 @"macos-option-as-alt": ?OptionAsAlt = null,
 
 /// Whether to enable the macOS window shadow. The default value is true.
@@ -2518,6 +2619,8 @@ keybind: Keybinds = .{},
 ///
 /// Note: When the macOS application is hidden, keyboard layout changes
 /// will no longer be automatic. This is a limitation of macOS.
+///
+/// Available since: 1.2.0
 @"macos-hidden": MacHidden = .never,
 
 /// If true, Ghostty on macOS will automatically enable the "Secure Input"
@@ -2579,7 +2682,6 @@ keybind: Keybinds = .{},
 ///     This is because the update dialog is managed through a
 ///     separate framework and cannot be customized without significant
 ///     effort.
-///
 @"macos-icon": MacAppIcon = .official,
 
 /// The material to use for the frame of the macOS app icon.
@@ -2593,7 +2695,6 @@ keybind: Keybinds = .{},
 ///
 /// Note: This configuration is required when `macos-icon` is set to
 /// `custom-style`.
-///
 @"macos-icon-frame": MacAppIconFrame = .aluminum,
 
 /// The color of the ghost in the macOS app icon.
@@ -2614,7 +2715,6 @@ keybind: Keybinds = .{},
 ///
 /// Note: This configuration is required when `macos-icon` is set to
 /// `custom-style`.
-///
 @"macos-icon-screen-color": ?ColorList = null,
 
 /// Whether macOS Shortcuts are allowed to control Ghostty.
@@ -2638,6 +2738,7 @@ keybind: Keybinds = .{},
 ///
 /// * `deny` - Deny Shortcuts from controlling Ghostty.
 ///
+/// Available since: 1.2.0
 @"macos-shortcuts": MacShortcuts = .ask,
 
 /// Put every surface (tab, split, window) into a dedicated Linux cgroup.
@@ -2665,7 +2766,6 @@ keybind: Keybinds = .{},
 ///   * `always` - Always use cgroups.
 ///   * `single-instance` - Enable cgroups only for Ghostty instances launched
 ///     as single-instance applications (see gtk-single-instance).
-///
 @"linux-cgroup": LinuxCgroup = if (builtin.os.tag == .linux)
     .@"single-instance"
 else
@@ -2702,6 +2802,8 @@ else
 
 /// Enable or disable GTK's OpenGL debugging logs. The default is `true` for
 /// debug builds, `false` for all others.
+///
+/// Available since: 1.1.0
 @"gtk-opengl-debug": bool = builtin.mode == .Debug,
 
 /// If `true`, the Ghostty GTK application will run in single-instance mode:
@@ -2739,6 +2841,8 @@ else
 
 /// If this is `true`, the titlebar will be hidden when the window is maximized,
 /// and shown when the titlebar is unmaximized. GTK only.
+///
+/// Available since: 1.1.0
 @"gtk-titlebar-hide-when-maximized": bool = false,
 
 /// Determines the appearance of the top and bottom bars tab bar.
@@ -2761,14 +2865,14 @@ else
 ///
 /// GTK CSS documentation can be found at the following links:
 ///
-///   * <https://docs.gtk.org/gtk4/css-overview.html> - An overview of GTK CSS.
-///   * <https://docs.gtk.org/gtk4/css-properties.html> - A comprehensive list
+///   * https://docs.gtk.org/gtk4/css-overview.html - An overview of GTK CSS.
+///   * https://docs.gtk.org/gtk4/css-properties.html - A comprehensive list
 ///     of supported CSS properties.
 ///
 /// Launch Ghostty with `env GTK_DEBUG=interactive ghostty` to tweak Ghostty's
 /// CSS in real time using the GTK Inspector. Errors in your CSS files would
 /// also be reported in the terminal you started Ghostty from. See
-/// <https://developer.gnome.org/documentation/tools/inspector.html> for more
+/// https://developer.gnome.org/documentation/tools/inspector.html for more
 /// information about the GTK Inspector.
 ///
 /// This configuration can be repeated multiple times to load multiple files.
@@ -2776,14 +2880,32 @@ else
 /// not exist. If you want to include a file that begins with a literal ?
 /// character, surround the file path in double quotes (").
 /// The file size limit for a single stylesheet is 5MiB.
+///
+/// Available since: 1.1.0
 @"gtk-custom-css": RepeatablePath = .{},
 
 /// If `true` (default), applications running in the terminal can show desktop
 /// notifications using certain escape sequences such as OSC 9 or OSC 777.
 @"desktop-notifications": bool = true,
 
-/// If `true`, the bold text will use the bright color palette.
-@"bold-is-bright": bool = false,
+/// Modifies the color used for bold text in the terminal.
+///
+/// This can be set to a specific color, using the same format as
+/// `background` or `foreground` (e.g. `#RRGGBB` but other formats
+/// are also supported; see the aforementioned documentation). If a
+/// specific color is set, this color will always be used for the default
+/// bold text color. It will set the rest of the bold colors to `bright`.
+///
+/// This can also be set to `bright`, which uses the bright color palette
+/// for bold text. For example, if the text is red, then the bold will
+/// use the bright red color. The terminal palette is set with `palette`
+/// but can also be overridden by the terminal application itself using
+/// escape sequences such as OSC 4. (Since Ghostty 1.2.0, the previous
+/// configuration `bold-is-bright` is deprecated and replaced by this
+/// usage).
+///
+/// Available since Ghostty 1.2.0.
+@"bold-color": ?BoldColor = null,
 
 /// This will be used to set the `TERM` environment variable.
 /// HACK: We set this with an `xterm` prefix because vim uses that to enable key
@@ -2812,6 +2934,8 @@ term: []const u8 = "xterm-ghostty",
 /// this isn't intended to be modified by users, the documentation is
 /// lighter than the other configurations and users are expected to
 /// refer to the code for details.
+///
+/// Available since: 1.2.0
 @"launched-from": ?LaunchSource = null,
 
 /// Configures the low-level API to use for async IO, eventing, etc.
@@ -2840,6 +2964,8 @@ term: []const u8 = "xterm-ghostty",
 ///
 /// This is only supported on Linux, since this is the only platform
 /// where we have multiple options. On macOS, we always use `kqueue`.
+///
+/// Available since: 1.2.0
 @"async-backend": AsyncBackend = .auto,
 
 /// Control the auto-update functionality of Ghostty. This is only supported
@@ -3826,10 +3952,6 @@ pub fn parseManuallyHook(
     return true;
 }
 
-/// parseFieldManuallyFallback is a fallback called only when
-/// parsing the field directly failed. It can be used to implement
-/// backward compatibility. Since this is only called when parsing
-/// fails, it doesn't impact happy-path performance.
 fn compatGtkTabsLocation(
     self: *Config,
     alloc: Allocator,
@@ -3845,6 +3967,68 @@ fn compatGtkTabsLocation(
     }
 
     return false;
+}
+
+fn compatCursorInvertFgBg(
+    self: *Config,
+    alloc: Allocator,
+    key: []const u8,
+    value_: ?[]const u8,
+) bool {
+    _ = alloc;
+    assert(std.mem.eql(u8, key, "cursor-invert-fg-bg"));
+
+    // We don't do anything if the value is unset, which is technically
+    // not EXACTLY the same as prior behavior since it would fallback
+    // to doing whatever cursor-color/cursor-text were set to, but
+    // I don't want to store what that is separately so this is close
+    // enough.
+    //
+    // Realistically, these fields were mutually exclusive so anyone
+    // relying on that behavior should just upgrade to the new
+    // cursor-color/cursor-text fields.
+    const set = cli.args.parseBool(value_ orelse "t") catch return false;
+    if (set) {
+        self.@"cursor-color" = .@"cell-foreground";
+        self.@"cursor-text" = .@"cell-background";
+    }
+
+    return true;
+}
+
+fn compatSelectionInvertFgBg(
+    self: *Config,
+    alloc: Allocator,
+    key: []const u8,
+    value_: ?[]const u8,
+) bool {
+    _ = alloc;
+    assert(std.mem.eql(u8, key, "selection-invert-fg-bg"));
+
+    const set = cli.args.parseBool(value_ orelse "t") catch return false;
+    if (set) {
+        self.@"selection-foreground" = .@"cell-background";
+        self.@"selection-background" = .@"cell-foreground";
+    }
+
+    return true;
+}
+
+fn compatBoldIsBright(
+    self: *Config,
+    alloc: Allocator,
+    key: []const u8,
+    value_: ?[]const u8,
+) bool {
+    _ = alloc;
+    assert(std.mem.eql(u8, key, "bold-is-bright"));
+
+    const set = cli.args.parseBool(value_ orelse "t") catch return false;
+    if (set) {
+        self.@"bold-color" = .bright;
+    }
+
+    return true;
 }
 
 /// Create a shallow copy of this config. This will share all the memory
@@ -4271,6 +4455,12 @@ pub const WindowSubtitle = enum {
     @"working-directory",
 };
 
+pub const LinkPreviews = enum {
+    false,
+    true,
+    osc8,
+};
+
 /// Color represents a color using RGB.
 ///
 /// This is a packed struct so that the C API to read color values just
@@ -4406,6 +4596,117 @@ pub const Color = struct {
             Color{ .r = 0, .g = 0, .b = 0 },
             try Color.parseCLI("  black "),
         );
+    }
+};
+
+/// Represents color values that can also reference special color
+/// values such as "cell-foreground" or "cell-background".
+pub const TerminalColor = union(enum) {
+    color: Color,
+    @"cell-foreground",
+    @"cell-background",
+
+    pub fn parseCLI(input_: ?[]const u8) !TerminalColor {
+        const input = input_ orelse return error.ValueRequired;
+        if (std.mem.eql(u8, input, "cell-foreground")) return .@"cell-foreground";
+        if (std.mem.eql(u8, input, "cell-background")) return .@"cell-background";
+        return .{ .color = try Color.parseCLI(input) };
+    }
+
+    /// Used by Formatter
+    pub fn formatEntry(self: TerminalColor, formatter: anytype) !void {
+        switch (self) {
+            .color => try self.color.formatEntry(formatter),
+
+            .@"cell-foreground",
+            .@"cell-background",
+            => try formatter.formatEntry([:0]const u8, @tagName(self)),
+        }
+    }
+
+    test "parseCLI" {
+        const testing = std.testing;
+
+        try testing.expectEqual(
+            TerminalColor{ .color = Color{ .r = 78, .g = 42, .b = 132 } },
+            try TerminalColor.parseCLI("#4e2a84"),
+        );
+        try testing.expectEqual(
+            TerminalColor{ .color = Color{ .r = 0, .g = 0, .b = 0 } },
+            try TerminalColor.parseCLI("black"),
+        );
+        try testing.expectEqual(
+            TerminalColor.@"cell-foreground",
+            try TerminalColor.parseCLI("cell-foreground"),
+        );
+        try testing.expectEqual(
+            TerminalColor.@"cell-background",
+            try TerminalColor.parseCLI("cell-background"),
+        );
+
+        try testing.expectError(error.InvalidValue, TerminalColor.parseCLI("a"));
+    }
+
+    test "formatConfig" {
+        const testing = std.testing;
+        var buf = std.ArrayList(u8).init(testing.allocator);
+        defer buf.deinit();
+
+        var sc: TerminalColor = .@"cell-foreground";
+        try sc.formatEntry(formatterpkg.entryFormatter("a", buf.writer()));
+        try testing.expectEqualSlices(u8, "a = cell-foreground\n", buf.items);
+    }
+};
+
+/// Represents color values that can be used for bold. See `bold-color`.
+pub const BoldColor = union(enum) {
+    color: Color,
+    bright,
+
+    pub fn parseCLI(input_: ?[]const u8) !BoldColor {
+        const input = input_ orelse return error.ValueRequired;
+        if (std.mem.eql(u8, input, "bright")) return .bright;
+        return .{ .color = try Color.parseCLI(input) };
+    }
+
+    /// Used by Formatter
+    pub fn formatEntry(self: BoldColor, formatter: anytype) !void {
+        switch (self) {
+            .color => try self.color.formatEntry(formatter),
+            .bright => try formatter.formatEntry(
+                [:0]const u8,
+                @tagName(self),
+            ),
+        }
+    }
+
+    test "parseCLI" {
+        const testing = std.testing;
+
+        try testing.expectEqual(
+            BoldColor{ .color = Color{ .r = 78, .g = 42, .b = 132 } },
+            try BoldColor.parseCLI("#4e2a84"),
+        );
+        try testing.expectEqual(
+            BoldColor{ .color = Color{ .r = 0, .g = 0, .b = 0 } },
+            try BoldColor.parseCLI("black"),
+        );
+        try testing.expectEqual(
+            BoldColor.bright,
+            try BoldColor.parseCLI("bright"),
+        );
+
+        try testing.expectError(error.InvalidValue, BoldColor.parseCLI("a"));
+    }
+
+    test "formatConfig" {
+        const testing = std.testing;
+        var buf = std.ArrayList(u8).init(testing.allocator);
+        defer buf.deinit();
+
+        var sc: BoldColor = .bright;
+        try sc.formatEntry(formatterpkg.entryFormatter("a", buf.writer()));
+        try testing.expectEqualSlices(u8, "a = bright\n", buf.items);
     }
 };
 
@@ -5342,7 +5643,14 @@ pub const Keybinds = struct {
                         .mods = mods,
                     },
                     .{ .goto_tab = (i - start) + 1 },
-                    .{ .performable = true },
+                    .{
+                        // On macOS we keep this not performable so that the
+                        // keyboard shortcuts in tabs work. In the future the
+                        // correct fix is to fix the reverse mapping lookup
+                        // to allow us to lookup performable keybinds
+                        // conditionally.
+                        .performable = !builtin.target.os.tag.isDarwin(),
+                    },
                 );
             }
             try self.set.putFlags(
@@ -5352,7 +5660,10 @@ pub const Keybinds = struct {
                     .mods = mods,
                 },
                 .{ .last_tab = {} },
-                .{ .performable = true },
+                .{
+                    // See comment above with the numeric goto_tab
+                    .performable = !builtin.target.os.tag.isDarwin(),
+                },
             );
         }
 
@@ -6407,8 +6718,9 @@ pub const RepeatableCommand = struct {
         try list.parseCLI(alloc, "title:Foo,action:ignore");
         try list.parseCLI(alloc, "title:Bar,description:bobr,action:text:ale bydle");
         try list.parseCLI(alloc, "title:Quux,description:boo,action:increase_font_size:2.5");
+        try list.parseCLI(alloc, "title:Baz,description:Raspberry Pie,action:set_font_size:3.14");
 
-        try testing.expectEqual(@as(usize, 3), list.value.items.len);
+        try testing.expectEqual(@as(usize, 4), list.value.items.len);
 
         try testing.expectEqual(inputpkg.Binding.Action.ignore, list.value.items[0].action);
         try testing.expectEqualStrings("Foo", list.value.items[0].title);
@@ -6424,6 +6736,13 @@ pub const RepeatableCommand = struct {
         );
         try testing.expectEqualStrings("Quux", list.value.items[2].title);
         try testing.expectEqualStrings("boo", list.value.items[2].description);
+
+        try testing.expectEqual(
+            inputpkg.Binding.Action{ .set_font_size = 3.14 },
+            list.value.items[3].action,
+        );
+        try testing.expectEqualStrings("Baz", list.value.items[3].title);
+        try testing.expectEqualStrings("Raspberry Pie", list.value.items[3].description);
 
         try list.parseCLI(alloc, "");
         try testing.expectEqual(@as(usize, 0), list.value.items.len);
@@ -6960,8 +7279,8 @@ pub const FreetypeLoadFlags = packed struct {
     // for Freetype itself. Ghostty hasn't made any opinionated changes
     // to these defaults.
     hinting: bool = true,
-    @"force-autohint": bool = true,
-    monochrome: bool = true,
+    @"force-autohint": bool = false,
+    monochrome: bool = false,
     autohint: bool = true,
 };
 
@@ -8040,5 +8359,73 @@ test "theme specifying light/dark sets theme usage in conditional state" {
 
         try testing.expect(cfg.@"window-theme" == .system);
         try testing.expect(cfg._conditional_set.contains(.theme));
+    }
+}
+
+test "compatibility: removed cursor-invert-fg-bg" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    {
+        var cfg = try Config.default(alloc);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--cursor-invert-fg-bg",
+        } };
+        try cfg.loadIter(alloc, &it);
+        try cfg.finalize();
+
+        try testing.expectEqual(
+            TerminalColor.@"cell-foreground",
+            cfg.@"cursor-color",
+        );
+        try testing.expectEqual(
+            TerminalColor.@"cell-background",
+            cfg.@"cursor-text",
+        );
+    }
+}
+
+test "compatibility: removed selection-invert-fg-bg" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    {
+        var cfg = try Config.default(alloc);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--selection-invert-fg-bg",
+        } };
+        try cfg.loadIter(alloc, &it);
+        try cfg.finalize();
+
+        try testing.expectEqual(
+            TerminalColor.@"cell-background",
+            cfg.@"selection-foreground",
+        );
+        try testing.expectEqual(
+            TerminalColor.@"cell-foreground",
+            cfg.@"selection-background",
+        );
+    }
+}
+
+test "compatibility: removed bold-is-bright" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    {
+        var cfg = try Config.default(alloc);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--bold-is-bright",
+        } };
+        try cfg.loadIter(alloc, &it);
+        try cfg.finalize();
+
+        try testing.expectEqual(
+            BoldColor.bright,
+            cfg.@"bold-color",
+        );
     }
 }
