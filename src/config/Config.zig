@@ -689,10 +689,10 @@ palette: Palette = .{},
 /// other colors at runtime:
 ///
 ///   * `cell-foreground` - Match the cell foreground color.
-///     (Available since version 1.2.0)
+///     (Available since: 1.2.0)
 ///
 ///   * `cell-background` - Match the cell background color.
-///     (Available since version 1.2.0)
+///     (Available since: 1.2.0)
 @"cursor-color": ?TerminalColor = null,
 
 /// The opacity level (opposite of transparency) of the cursor. A value of 1
@@ -813,6 +813,22 @@ palette: Palette = .{},
 ///
 /// On macOS, changing this configuration requires restarting Ghostty completely.
 @"background-opacity": f64 = 1.0,
+
+/// Applies background opacity to cells with an explicit background color
+/// set.
+///
+/// Normally, `background-opacity` is only applied to the window background.
+/// If a cell has an explicit background color set, such as red, then that
+/// background color will be fully opaque. An effect of this is that some
+/// terminal applications that repaint the background color of the terminal
+/// such as a Neovim and Tmux may not respect the `background-opacity`
+/// (by design).
+///
+/// Setting this to `true` will apply the `background-opacity` to all cells
+/// regardless of whether they have an explicit background color set or not.
+///
+/// Available since: 1.2.0
+@"background-opacity-cells": bool = false,
 
 /// Whether to blur the background when `background-opacity` is less than 1.
 ///
@@ -2202,6 +2218,8 @@ keybind: Keybinds = .{},
 /// its default value is used, so you must explicitly disable features you don't
 /// want. You can also use `true` or `false` to turn all features on or off.
 ///
+/// Example: `cursor`, `no-cursor`, `sudo`, `no-sudo`, `title`, `no-title`
+///
 /// Available features:
 ///
 ///   * `cursor` - Set the cursor to a blinking bar at the prompt.
@@ -2210,7 +2228,26 @@ keybind: Keybinds = .{},
 ///
 ///   * `title` - Set the window title via shell integration.
 ///
-/// Example: `cursor`, `no-cursor`, `sudo`, `no-sudo`, `title`, `no-title`
+///   * `ssh-env` - Enable SSH environment variable compatibility. Automatically
+///     converts TERM from `xterm-ghostty` to `xterm-256color` when connecting to
+///     remote hosts and propagates COLORTERM, TERM_PROGRAM, and TERM_PROGRAM_VERSION.
+///     Whether or not these variables will be accepted by the remote host(s) will
+///     depend on whether or not the variables are allowed in their sshd_config.
+///     (Available since: 1.2.0)
+///
+///   * `ssh-terminfo` - Enable automatic terminfo installation on remote hosts.
+///     Attempts to install Ghostty's terminfo entry using `infocmp` and `tic` when
+///     connecting to hosts that lack it. Requires `infocmp` to be available locally
+///     and `tic` to be available on remote hosts. Once terminfo is installed on a
+///     remote host, it will be automatically "cached" to avoid repeat installations.
+///     If desired, the `+ssh-cache` CLI action can be used to manage the installation
+///     cache manually using various arguments.
+///     (Available since: 1.2.0)
+///
+/// SSH features work independently and can be combined for optimal experience:
+/// when both `ssh-env` and `ssh-terminfo` are enabled, Ghostty will install its
+/// terminfo on remote hosts and use `xterm-ghostty` as TERM, falling back to
+/// `xterm-256color` with environment variables if terminfo installation fails.
 @"shell-integration-features": ShellIntegrationFeatures = .{},
 
 /// Custom entries into the command palette.
@@ -6636,6 +6673,8 @@ pub const ShellIntegrationFeatures = packed struct {
     cursor: bool = true,
     sudo: bool = false,
     title: bool = true,
+    @"ssh-env": bool = false,
+    @"ssh-terminfo": bool = false,
 };
 
 pub const RepeatableCommand = struct {
